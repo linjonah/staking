@@ -13,9 +13,10 @@ import "@boringcrypto/boring-solidity/contracts/BoringOwnable.sol";
 import "@boringcrypto/boring-solidity/contracts/libraries/BoringERC20.sol";
 import "./interfaces/IRewarder.sol";
 // XXX Remove: import "./interfaces/IMasterChef.sol";
+import "hardhat/console.sol";
 
 library SignedSafeMath {
-    int256 constant private _INT256_MIN = -2**255;
+    int256 private constant _INT256_MIN = -2**255;
 
     /**
      * @dev Returns the multiplication of two signed integers, reverting on
@@ -35,7 +36,10 @@ library SignedSafeMath {
             return 0;
         }
 
-        require(!(a == -1 && b == _INT256_MIN), "SignedSafeMath: multiplication overflow");
+        require(
+            !(a == -1 && b == _INT256_MIN),
+            "SignedSafeMath: multiplication overflow"
+        );
 
         int256 c = a * b;
         require(c / a == b, "SignedSafeMath: multiplication overflow");
@@ -57,7 +61,10 @@ library SignedSafeMath {
      */
     function div(int256 a, int256 b) internal pure returns (int256) {
         require(b != 0, "SignedSafeMath: division by zero");
-        require(!(b == -1 && a == _INT256_MIN), "SignedSafeMath: division overflow");
+        require(
+            !(b == -1 && a == _INT256_MIN),
+            "SignedSafeMath: division overflow"
+        );
 
         int256 c = a / b;
 
@@ -76,7 +83,10 @@ library SignedSafeMath {
      */
     function sub(int256 a, int256 b) internal pure returns (int256) {
         int256 c = a - b;
-        require((b >= 0 && c <= a) || (b < 0 && c > a), "SignedSafeMath: subtraction overflow");
+        require(
+            (b >= 0 && c <= a) || (b < 0 && c > a),
+            "SignedSafeMath: subtraction overflow"
+        );
 
         return c;
     }
@@ -93,7 +103,10 @@ library SignedSafeMath {
      */
     function add(int256 a, int256 b) internal pure returns (int256) {
         int256 c = a + b;
-        require((b >= 0 && c >= a) || (b < 0 && c < a), "SignedSafeMath: addition overflow");
+        require(
+            (b >= 0 && c >= a) || (b < 0 && c < a),
+            "SignedSafeMath: addition overflow"
+        );
 
         return c;
     }
@@ -109,7 +122,6 @@ interface IMigratorChef {
     // Migrator should have full access to the caller's LP token.
     function migrate(IERC20 token) external returns (IERC20);
 }
-
 
 /// @notice Adapting MasterChefV2 contract to act more like MasterChefV1 as the base liquidity mining contract,
 /// but allowing for double incentives through rewarders.
@@ -157,20 +169,51 @@ contract ChefV2 is BoringOwnable, BoringBatchable {
     IRewarder[] public rewarder;
 
     /// @notice Info of each user that stakes LP tokens.
-    mapping (uint256 => mapping (address => UserInfo)) public userInfo;
+    mapping(uint256 => mapping(address => UserInfo)) public userInfo;
     /// @dev Total allocation points. Must be the sum of all allocation points in all pools.
     uint256 totalAllocPoint;
 
     uint256 private constant MASTERCHEF_SUSHI_PER_BLOCK = 1e20;
     uint256 private constant ACC_SUSHI_PRECISION = 1e12;
 
-    event Deposit(address indexed user, uint256 indexed pid, uint256 amount, address indexed to);
-    event Withdraw(address indexed user, uint256 indexed pid, uint256 amount, address indexed to);
-    event EmergencyWithdraw(address indexed user, uint256 indexed pid, uint256 amount, address indexed to);
+    event Deposit(
+        address indexed user,
+        uint256 indexed pid,
+        uint256 amount,
+        address indexed to
+    );
+    event Withdraw(
+        address indexed user,
+        uint256 indexed pid,
+        uint256 amount,
+        address indexed to
+    );
+    event EmergencyWithdraw(
+        address indexed user,
+        uint256 indexed pid,
+        uint256 amount,
+        address indexed to
+    );
     event Harvest(address indexed user, uint256 indexed pid, uint256 amount);
-    event LogPoolAddition(uint256 indexed pid, uint256 allocPoint, IERC20 indexed lpToken, IRewarder indexed rewarder);
-    event LogSetPool(uint256 indexed pid, uint256 allocPoint, IRewarder indexed rewarder, bool overwrite);
-    event LogUpdatePool(uint256 indexed pid, uint64 lastRewardBlock, uint256 lpSupply, uint256 accSushiPerShare);
+    event LogPoolAddition(
+        uint256 indexed pid,
+        uint256 allocPoint,
+        IERC20 indexed lpToken,
+        IRewarder indexed rewarder
+    );
+    event LogSetPool(
+        uint256 indexed pid,
+        uint256 allocPoint,
+        IRewarder indexed rewarder,
+        bool overwrite
+    );
+    event LogUpdatePool(
+        uint256 indexed pid,
+        uint64 lastRewardBlock,
+        uint256 lpSupply,
+        uint256 accSushiPerShare
+    );
+
     /// XXX Remove: event LogInit();
 
     /// @param _sushi The SUSHI token contract address.
@@ -197,18 +240,29 @@ contract ChefV2 is BoringOwnable, BoringBatchable {
     /// @param allocPoint AP of the new pool.
     /// @param _lpToken Address of the LP ERC-20 token.
     /// @param _rewarder Address of the rewarder delegate.
-    function add(uint256 allocPoint, IERC20 _lpToken, IRewarder _rewarder) public onlyOwner {
+    function add(
+        uint256 allocPoint,
+        IERC20 _lpToken,
+        IRewarder _rewarder
+    ) public onlyOwner {
         uint256 lastRewardBlock = block.number;
         totalAllocPoint = totalAllocPoint.add(allocPoint);
         lpToken.push(_lpToken);
         rewarder.push(_rewarder);
 
-        poolInfo.push(PoolInfo({
-            allocPoint: allocPoint.to64(),
-            lastRewardBlock: lastRewardBlock.to64(),
-            accSushiPerShare: 0
-        }));
-        emit LogPoolAddition(lpToken.length.sub(1), allocPoint, _lpToken, _rewarder);
+        poolInfo.push(
+            PoolInfo({
+                allocPoint: allocPoint.to64(),
+                lastRewardBlock: lastRewardBlock.to64(),
+                accSushiPerShare: 0
+            })
+        );
+        emit LogPoolAddition(
+            lpToken.length.sub(1),
+            allocPoint,
+            _lpToken,
+            _rewarder
+        );
     }
 
     /// @notice Update the given pool's SUSHI allocation point and `IRewarder` contract. Can only be called by the owner.
@@ -216,11 +270,25 @@ contract ChefV2 is BoringOwnable, BoringBatchable {
     /// @param _allocPoint New AP of the pool.
     /// @param _rewarder Address of the rewarder delegate.
     /// @param overwrite True if _rewarder should be `set`. Otherwise `_rewarder` is ignored.
-    function set(uint256 _pid, uint256 _allocPoint, IRewarder _rewarder, bool overwrite) public onlyOwner {
-        totalAllocPoint = totalAllocPoint.sub(poolInfo[_pid].allocPoint).add(_allocPoint);
+    function set(
+        uint256 _pid,
+        uint256 _allocPoint,
+        IRewarder _rewarder,
+        bool overwrite
+    ) public onlyOwner {
+        totalAllocPoint = totalAllocPoint.sub(poolInfo[_pid].allocPoint).add(
+            _allocPoint
+        );
         poolInfo[_pid].allocPoint = _allocPoint.to64();
-        if (overwrite) { rewarder[_pid] = _rewarder; }
-        emit LogSetPool(_pid, _allocPoint, overwrite ? _rewarder : rewarder[_pid], overwrite);
+        if (overwrite) {
+            rewarder[_pid] = _rewarder;
+        }
+        emit LogSetPool(
+            _pid,
+            _allocPoint,
+            overwrite ? _rewarder : rewarder[_pid],
+            overwrite
+        );
     }
 
     /// @notice Set the `migrator` contract. Can only be called by the owner.
@@ -232,12 +300,18 @@ contract ChefV2 is BoringOwnable, BoringBatchable {
     /// @notice Migrate LP token to another LP contract through the `migrator` contract.
     /// @param _pid The index of the pool. See `poolInfo`.
     function migrate(uint256 _pid) public {
-        require(address(migrator) != address(0), "MasterChefV2: no migrator set");
+        require(
+            address(migrator) != address(0),
+            "MasterChefV2: no migrator set"
+        );
         IERC20 _lpToken = lpToken[_pid];
         uint256 bal = _lpToken.balanceOf(address(this));
         _lpToken.approve(address(migrator), bal);
         IERC20 newLpToken = migrator.migrate(_lpToken);
-        require(bal == newLpToken.balanceOf(address(this)), "MasterChefV2: migrated balance must match");
+        require(
+            bal == newLpToken.balanceOf(address(this)),
+            "MasterChefV2: migrated balance must match"
+        );
         lpToken[_pid] = newLpToken;
     }
 
@@ -245,17 +319,29 @@ contract ChefV2 is BoringOwnable, BoringBatchable {
     /// @param _pid The index of the pool. See `poolInfo`.
     /// @param _user Address of user.
     /// @return pending SUSHI reward for a given user.
-    function pendingSushi(uint256 _pid, address _user) external view returns (uint256 pending) {
+    function pendingSushi(uint256 _pid, address _user)
+        external
+        view
+        returns (uint256 pending)
+    {
         PoolInfo memory pool = poolInfo[_pid];
         UserInfo storage user = userInfo[_pid][_user];
         uint256 accSushiPerShare = pool.accSushiPerShare;
         uint256 lpSupply = lpToken[_pid].balanceOf(address(this));
         if (block.number > pool.lastRewardBlock && lpSupply != 0) {
             uint256 blocks = block.number.sub(pool.lastRewardBlock);
-            uint256 sushiReward = blocks.mul(sushiPerBlock()).mul(pool.allocPoint) / totalAllocPoint;
-            accSushiPerShare = accSushiPerShare.add(sushiReward.mul(ACC_SUSHI_PRECISION) / lpSupply);
+            uint256 sushiReward =
+                blocks.mul(sushiPerBlock()).mul(pool.allocPoint) /
+                    totalAllocPoint;
+            accSushiPerShare = accSushiPerShare.add(
+                sushiReward.mul(ACC_SUSHI_PRECISION) / lpSupply
+            );
         }
-        pending = int256(user.amount.mul(accSushiPerShare) / ACC_SUSHI_PRECISION).sub(user.rewardDebt).toUInt256();
+        pending = int256(
+            user.amount.mul(accSushiPerShare) / ACC_SUSHI_PRECISION
+        )
+            .sub(user.rewardDebt)
+            .toUInt256();
     }
 
     /// @notice Update reward variables for all pools. Be careful of gas spending!
@@ -281,12 +367,21 @@ contract ChefV2 is BoringOwnable, BoringBatchable {
             uint256 lpSupply = lpToken[pid].balanceOf(address(this));
             if (lpSupply > 0) {
                 uint256 blocks = block.number.sub(pool.lastRewardBlock);
-                uint256 sushiReward = blocks.mul(sushiPerBlock()).mul(pool.allocPoint) / totalAllocPoint;
-                pool.accSushiPerShare = pool.accSushiPerShare.add((sushiReward.mul(ACC_SUSHI_PRECISION) / lpSupply).to128());
+                uint256 sushiReward =
+                    blocks.mul(sushiPerBlock()).mul(pool.allocPoint) /
+                        totalAllocPoint;
+                pool.accSushiPerShare = pool.accSushiPerShare.add(
+                    (sushiReward.mul(ACC_SUSHI_PRECISION) / lpSupply).to128()
+                );
             }
             pool.lastRewardBlock = block.number.to64();
             poolInfo[pid] = pool;
-            emit LogUpdatePool(pid, pool.lastRewardBlock, lpSupply, pool.accSushiPerShare);
+            emit LogUpdatePool(
+                pid,
+                pool.lastRewardBlock,
+                lpSupply,
+                pool.accSushiPerShare
+            );
         }
     }
 
@@ -294,13 +389,19 @@ contract ChefV2 is BoringOwnable, BoringBatchable {
     /// @param pid The index of the pool. See `poolInfo`.
     /// @param amount LP token amount to deposit.
     /// @param to The receiver of `amount` deposit benefit.
-    function deposit(uint256 pid, uint256 amount, address to) public {
+    function deposit(
+        uint256 pid,
+        uint256 amount,
+        address to
+    ) public {
         PoolInfo memory pool = updatePool(pid);
         UserInfo storage user = userInfo[pid][to];
 
         // Effects
         user.amount = user.amount.add(amount);
-        user.rewardDebt = user.rewardDebt.add(int256(amount.mul(pool.accSushiPerShare) / ACC_SUSHI_PRECISION));
+        user.rewardDebt = user.rewardDebt.add(
+            int256(amount.mul(pool.accSushiPerShare) / ACC_SUSHI_PRECISION)
+        );
 
         // Interactions
         IRewarder _rewarder = rewarder[pid];
@@ -317,12 +418,18 @@ contract ChefV2 is BoringOwnable, BoringBatchable {
     /// @param pid The index of the pool. See `poolInfo`.
     /// @param amount LP token amount to withdraw.
     /// @param to Receiver of the LP tokens.
-    function withdraw(uint256 pid, uint256 amount, address to) public {
+    function withdraw(
+        uint256 pid,
+        uint256 amount,
+        address to
+    ) public {
         PoolInfo memory pool = updatePool(pid);
         UserInfo storage user = userInfo[pid][msg.sender];
 
         // Effects
-        user.rewardDebt = user.rewardDebt.sub(int256(amount.mul(pool.accSushiPerShare) / ACC_SUSHI_PRECISION));
+        user.rewardDebt = user.rewardDebt.sub(
+            int256(amount.mul(pool.accSushiPerShare) / ACC_SUSHI_PRECISION)
+        );
         user.amount = user.amount.sub(amount);
 
         // Interactions
@@ -342,8 +449,12 @@ contract ChefV2 is BoringOwnable, BoringBatchable {
     function harvest(uint256 pid, address to) public {
         PoolInfo memory pool = updatePool(pid);
         UserInfo storage user = userInfo[pid][msg.sender];
-        int256 accumulatedSushi = int256(user.amount.mul(pool.accSushiPerShare) / ACC_SUSHI_PRECISION);
-        uint256 _pendingSushi = accumulatedSushi.sub(user.rewardDebt).toUInt256();
+        int256 accumulatedSushi =
+            int256(
+                user.amount.mul(pool.accSushiPerShare) / ACC_SUSHI_PRECISION
+            );
+        uint256 _pendingSushi =
+            accumulatedSushi.sub(user.rewardDebt).toUInt256();
 
         // Effects
         user.rewardDebt = accumulatedSushi;
@@ -355,7 +466,13 @@ contract ChefV2 is BoringOwnable, BoringBatchable {
 
         IRewarder _rewarder = rewarder[pid];
         if (address(_rewarder) != address(0)) {
-            _rewarder.onSushiReward( pid, msg.sender, to, _pendingSushi, user.amount);
+            _rewarder.onSushiReward(
+                pid,
+                msg.sender,
+                to,
+                _pendingSushi,
+                user.amount
+            );
         }
 
         emit Harvest(msg.sender, pid, _pendingSushi);
@@ -365,14 +482,24 @@ contract ChefV2 is BoringOwnable, BoringBatchable {
     /// @param pid The index of the pool. See `poolInfo`.
     /// @param amount LP token amount to withdraw.
     /// @param to Receiver of the LP tokens and SUSHI rewards.
-    function withdrawAndHarvest(uint256 pid, uint256 amount, address to) public {
+    function withdrawAndHarvest(
+        uint256 pid,
+        uint256 amount,
+        address to
+    ) public {
         PoolInfo memory pool = updatePool(pid);
         UserInfo storage user = userInfo[pid][msg.sender];
-        int256 accumulatedSushi = int256(user.amount.mul(pool.accSushiPerShare) / ACC_SUSHI_PRECISION);
-        uint256 _pendingSushi = accumulatedSushi.sub(user.rewardDebt).toUInt256();
+        int256 accumulatedSushi =
+            int256(
+                user.amount.mul(pool.accSushiPerShare) / ACC_SUSHI_PRECISION
+            );
+        uint256 _pendingSushi =
+            accumulatedSushi.sub(user.rewardDebt).toUInt256();
 
         // Effects
-        user.rewardDebt = accumulatedSushi.sub(int256(amount.mul(pool.accSushiPerShare) / ACC_SUSHI_PRECISION));
+        user.rewardDebt = accumulatedSushi.sub(
+            int256(amount.mul(pool.accSushiPerShare) / ACC_SUSHI_PRECISION)
+        );
         user.amount = user.amount.sub(amount);
 
         // Interactions
@@ -380,7 +507,13 @@ contract ChefV2 is BoringOwnable, BoringBatchable {
 
         IRewarder _rewarder = rewarder[pid];
         if (address(_rewarder) != address(0)) {
-            _rewarder.onSushiReward(pid, msg.sender, to, _pendingSushi, user.amount);
+            _rewarder.onSushiReward(
+                pid,
+                msg.sender,
+                to,
+                _pendingSushi,
+                user.amount
+            );
         }
 
         lpToken[pid].safeTransfer(to, amount);

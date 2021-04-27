@@ -1,5 +1,5 @@
 import { expect } from 'chai'
-import { prepare, deploy, getBigNumber } from "./utilities"
+import { prepare, deploy, getBigNumber, advanceBlock, advanceBlockTo } from "./utilities"
 
 
 describe("PoolRewarder", function() {
@@ -20,6 +20,9 @@ describe("PoolRewarder", function() {
       ["rlp0", this.ERC20Mock, ["LP0", "rLP0T", getBigNumber(10)]],
       ["rlp1", this.ERC20Mock, ["LP1", "rLP1T", getBigNumber(10)]],
       ["rlp2", this.ERC20Mock, ["LP2", "rLP2T", getBigNumber(10)]],
+      
+      //create OVL token for trading fees
+      ["rOVL", this.ERC20Mock, ["rOVL", "rOVLT", getBigNumber(100000)]]
     ])
 
     // Deploy pool rewarder to be called on each deposit/withdraw/harvest
@@ -64,7 +67,37 @@ describe("PoolRewarder", function() {
   })
 
   describe("onSushiReward", function() {
+    it("Should give back correct amount of additional trading fee rewards", async function() {
+      await this.rewarder.set(0, 10)
+      await this.rlp0.approve(this.chef.address, getBigNumber(10))
+      expect(await this.chef.lpToken(0)).to.be.equal(this.rlp0.address)
 
+      // simulate when user deposits LP token into pool
+      let log = await this.chef.deposit(0, getBigNumber(2), this.alice.address)
+      // console.log('this is alices token wallet before withdrawal', await this.rewardToken.balanceOf(this.alice.address))
+      // simulate time passing, use advanceBlockTo() 
+      await advanceBlockTo(20)
+
+      // transfer OVL token to Rewards Contract
+      // as trading fees from markets
+      await this.rewardToken.mint(this.rewarder.address, getBigNumber(100))
+
+      // simulate user withdrawing LP token from pool
+      // user withdraws and harvests to trigger onSushiReward()
+      await this.chef.withdrawAndHarvest(0, getBigNumber(1), this.alice.address)
+
+      console.log('this is alices balance: ', (await this.chef.userInfo(0, this.alice.address)))
+      // console.log('this is alices token wallet after withdrawal', await this.rewardToken.balanceOf(this.alice.address))
+
+      // simulate trading fees given with onSushiReward() call 
+      // from withdrawAndHarvest() function call above
+      let expectedTradingFeesRewarded = this.rewardToken.balanceOf(this.rewarder.address).mul(getBigNumber(1)) / this.chef(this.rewarder.CHEF_V2).lpToken(0).balanceOf(this.rewader.CHEF_V2)
+      // console.log('this is expected: ', expectedTradingFeesRewarded)
+
+
+      console.log('this is PoolRewarder address: ', this.rewarder.address)
+
+    })
   })
 
   describe("pendingTokens", function() {
