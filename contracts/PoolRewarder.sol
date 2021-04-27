@@ -55,24 +55,32 @@ contract PoolRewarder is IRewarder, BoringOwnable {
         uint256 amount = userAmount[_pid][_user];
         uint256 alloc = poolAllocPoint[_pid];
         userAmount[_pid][_user] = _newLpAmount;
-        console.log("this is current value of amount: ", amount);
+        console.log("Previous amount = userAmount[_pid][_user]: ", amount);
         console.log(
-            "this is the current amount after newLP:",
+            "Current amount = userAmount[_pid][_user]:",
             userAmount[_pid][_user]
         );
-        console.log("this is the _sushiAmount", _sushiAmount);
-        console.log("this is current alloc", alloc);
+        console.log("Current _sushiAmount", _sushiAmount);
         // Interactions
         if (_sushiAmount > 0 && amount > 0 && alloc > 0) {
             // Send reward share on harvest
             uint256 lpSupply = ChefV2(CHEF_V2).lpToken(_pid).balanceOf(CHEF_V2);
-            console.log("this is lpSupply: ", lpSupply);
+            console.log("Harvest totalLpShares: ", lpSupply);
             uint256 reward =
                 rewardToken.balanceOf(address(this)).mul(amount) / lpSupply;
-            console.log("this is reward", reward);
+            console.log(
+                "Harvest rewardsInPoolRewarder: ",
+                rewardToken.balanceOf(address(this))
+            );
+            console.log("Harvest userLpShares: ", amount);
+            console.log(
+                "Harvest weightForRewardPool: ",
+                alloc / totalAllocPoint
+            );
             // console.log("this is address(this): ", address(this));
             uint256 weighted = reward.mul(alloc) / totalAllocPoint;
-            console.log("this is weighted: ", weighted);
+            console.log("Final Rewards: ", weighted);
+            console.log("Send to Address: ", _to);
             rewardToken.safeTransfer(_to, weighted);
         }
     }

@@ -68,34 +68,51 @@ describe("PoolRewarder", function() {
 
   describe("onSushiReward", function() {
     it("Should give back correct amount of additional trading fee rewards", async function() {
-      await this.rewarder.set(0, 10)
+      // transfer OVL token to Rewards Contract
+      // as trading fees from markets
+      await this.rewardToken.mint(this.rewarder.address, getBigNumber(2))
+      await this.rewarder.set(0, 20)
+      expect(await this.rewarder.poolAllocPoint(0)).to.be.equal(20)
+      expect(await this.rewarder.totalAllocPoint()).to.be.equal(20)
+      
+      // await this.rewarder.set(1, 10)
       await this.rlp0.approve(this.chef.address, getBigNumber(10))
       expect(await this.chef.lpToken(0)).to.be.equal(this.rlp0.address)
+      // console.log('expectedSupply before deposit :', await this.rewardToken.balanceOf(this.chef.address));
 
       // simulate when user deposits LP token into pool
-      let log = await this.chef.deposit(0, getBigNumber(2), this.alice.address)
-      // console.log('this is alices token wallet before withdrawal', await this.rewardToken.balanceOf(this.alice.address))
+      console.log('Chef Alice Balance before Deposit(): ', (await this.chef.userInfo(0, this.alice.address)))
+      await this.chef.deposit(0, getBigNumber(7), this.alice.address)
+      console.log('Chef Alice Balance after Deposit(): ', (await this.chef.userInfo(0, this.alice.address)))
+
+      console.log('PoolRewarder Alice Balance after Deposit()', await this.rewardToken.balanceOf(this.alice.address))
+      // console.log('expectedSupply after deposit :', await this.rewardToken.balanceOf(this.chef.address));
       // simulate time passing, use advanceBlockTo() 
       await advanceBlockTo(20)
 
-      // transfer OVL token to Rewards Contract
-      // as trading fees from markets
-      await this.rewardToken.mint(this.rewarder.address, getBigNumber(100))
 
+      // calculate expected trading fee rewards
+      // when calling onSushiReward()
+      let expectedUserLpShares = getBigNumber(7);
+      let expectedTotalLpShares = getBigNumber(7);
+      let expectedRewardsInPoolRewarder = getBigNumber(2);
+      let expectedWeightForRewardPool = 20 / 20;
+      let expectedRewards = expectedRewardsInPoolRewarder.mul(expectedUserLpShares / expectedTotalLpShares).mul(expectedWeightForRewardPool);
+      console.log('Expected Rewards: ', expectedRewards);
+      
+      
+      // console.log('Expected Rwards in Pool Rewarder: ', expectedRewardsInPoolRewarder)
+      
       // simulate user withdrawing LP token from pool
       // user withdraws and harvests to trigger onSushiReward()
-      await this.chef.withdrawAndHarvest(0, getBigNumber(1), this.alice.address)
+      await this.chef.withdrawAndHarvest(0, getBigNumber(3), this.alice.address)
+      expect(await this.rewardToken.balanceOf(this.alice.address)).to.be.equal(expectedRewards);
+      
+      console.log('Alice Balance after withdrawAndHarvest(): ', (await this.chef.userInfo(0, this.alice.address)))
+      console.log('PoolRewarder Alice Balance after withdrawAndHarvest()', await this.rewardToken.balanceOf(this.alice.address))
+      console.log('Alices Address: ', this.alice.address);
+      
 
-      console.log('this is alices balance: ', (await this.chef.userInfo(0, this.alice.address)))
-      // console.log('this is alices token wallet after withdrawal', await this.rewardToken.balanceOf(this.alice.address))
-
-      // simulate trading fees given with onSushiReward() call 
-      // from withdrawAndHarvest() function call above
-      let expectedTradingFeesRewarded = this.rewardToken.balanceOf(this.rewarder.address).mul(getBigNumber(1)) / this.chef(this.rewarder.CHEF_V2).lpToken(0).balanceOf(this.rewader.CHEF_V2)
-      // console.log('this is expected: ', expectedTradingFeesRewarded)
-
-
-      console.log('this is PoolRewarder address: ', this.rewarder.address)
 
     })
   })
