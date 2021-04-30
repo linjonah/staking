@@ -64,7 +64,7 @@ describe("PoolRewarder", function() {
   })
 
   describe("onSushiReward", function() {
-    it("Should give back correct amount of additional trading fee rewards", async function() {
+    it("Should give back correct amount of additional trading fee rewards with One LP", async function() {
       // transfer OVL token to Rewards Contract
       // as trading fees from markets
       await this.rewardToken.mint(this.rewarder.address, getBigNumber(2))
@@ -90,6 +90,42 @@ describe("PoolRewarder", function() {
       
       // simulate user withdrawing LP token from pool
       // user withdraws and harvests to trigger onSushiReward()
+      await this.chef.harvest(0, this.alice.address);
+      let expectedChefRewards = (await this.chef.userInfo(0, this.alice.address)).rewardDebt;
+      expect(await this.rewardToken.balanceOf(this.alice.address)).to.be.equal(expectedPoolRewards.add(expectedChefRewards));
+    })
+
+    it("Should give back correct amount of additional trading fee rewards with multiple LPs", async function() {
+      await this.rewardToken.mint(this.rewarder.address, getBigNumber(2))
+      await this.rewarder.set(0, 20)
+      await this.rewarder.set(1, 20)
+      expect(await this.rewarder.poolAllocPoint(0)).to.be.equal(20)
+      expect(await this.rewarder.totalAllocPoint()).to.be.equal(40)
+      await this.rlp0.approve(this.chef.address, getBigNumber(10))
+      expect(await this.chef.lpToken(0)).to.be.equal(this.rlp0.address)
+
+      console.log('1');
+      // three LP to deposit into same pool
+      await this.chef.deposit(0, getBigNumber(3), this.alice.address)
+      await this.chef.deposit(0, getBigNumber(4), this.bob.address)
+      await this.chef.deposit(0, getBigNumber(2), this.carol.address)
+
+      console.log('2');
+      // move 20 blocks forward
+      await advanceBlockTo(20)
+
+      console.log('3');
+      //calculate expected trading fees for alice
+      let expectedUserLpShares = getBigNumber(3);
+      let expectedTotalLpShares = getBigNumber(9);
+      let expectedRewardsInPoolRewarder = getBigNumber(2);
+      let expectedWeightForRewardPool = 0.5;
+      console.log('hit this');
+      let expectedPoolRewards = expectedRewardsInPoolRewarder.mul(expectedUserLpShares.div(expectedTotalLpShares)).mul(expectedWeightForRewardPool);
+
+      console.log('expectedPoolRewards: ', expectedPoolRewards);
+      console.log('4');
+      // harvest for Alice
       await this.chef.harvest(0, this.alice.address);
       let expectedChefRewards = (await this.chef.userInfo(0, this.alice.address)).rewardDebt;
       expect(await this.rewardToken.balanceOf(this.alice.address)).to.be.equal(expectedPoolRewards.add(expectedChefRewards));
