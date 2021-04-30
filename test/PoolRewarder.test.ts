@@ -75,18 +75,14 @@ describe("PoolRewarder", function() {
       expect(await this.rewarder.poolAllocPoint(0)).to.be.equal(20)
       expect(await this.rewarder.totalAllocPoint()).to.be.equal(20)
       
-      // await this.rewarder.set(1, 10)
       await this.rlp0.approve(this.chef.address, getBigNumber(10))
       expect(await this.chef.lpToken(0)).to.be.equal(this.rlp0.address)
-      // console.log('expectedSupply before deposit :', await this.rewardToken.balanceOf(this.chef.address));
-
+      
       // simulate when user deposits LP token into pool
       console.log('Chef Alice Balance before Deposit(): ', (await this.chef.userInfo(0, this.alice.address)))
       await this.chef.deposit(0, getBigNumber(7), this.alice.address)
       console.log('Chef Alice Balance after Deposit(): ', (await this.chef.userInfo(0, this.alice.address)))
 
-      console.log('PoolRewarder Alice Balance after Deposit()', await this.rewardToken.balanceOf(this.alice.address))
-      // console.log('expectedSupply after deposit :', await this.rewardToken.balanceOf(this.chef.address));
       // simulate time passing, use advanceBlockTo() 
       await advanceBlockTo(20)
 
@@ -97,20 +93,22 @@ describe("PoolRewarder", function() {
       let expectedTotalLpShares = getBigNumber(7);
       let expectedRewardsInPoolRewarder = getBigNumber(2);
       let expectedWeightForRewardPool = 20 / 20;
-      let expectedRewards = expectedRewardsInPoolRewarder.mul(expectedUserLpShares / expectedTotalLpShares).mul(expectedWeightForRewardPool);
-      console.log('Expected Rewards: ', expectedRewards);
-      
-      
-      // console.log('Expected Rwards in Pool Rewarder: ', expectedRewardsInPoolRewarder)
+      let expectedPoolRewards = expectedRewardsInPoolRewarder.mul(expectedUserLpShares / expectedTotalLpShares).mul(expectedWeightForRewardPool);
+      console.log('Expected Rewards: ', expectedPoolRewards);
+      // let log2 = await this.chef.withdraw(0, getBigNumber(6), this.alice.address)
       
       // simulate user withdrawing LP token from pool
       // user withdraws and harvests to trigger onSushiReward()
-      await this.chef.withdrawAndHarvest(0, getBigNumber(3), this.alice.address)
-      expect(await this.rewardToken.balanceOf(this.alice.address)).to.be.equal(expectedRewards);
+      // console.log('Alice RewardDebt: ', (await this.chef.userInfo(0, this.alice.address)).rewardDebt.toNumber());
+      await this.chef.harvest(0, this.alice.address);
+      let expectedChefRewards = (await this.chef.userInfo(0, this.alice.address)).rewardDebt;
+      // console.log('Alice RewardDebt: ', (await this.chef.userInfo(0, this.alice.address)).rewardDebt.toNumber());
+
+      expect(await this.rewardToken.balanceOf(this.alice.address)).to.be.equal(expectedPoolRewards.add(expectedChefRewards));
       
-      console.log('Alice Balance after withdrawAndHarvest(): ', (await this.chef.userInfo(0, this.alice.address)))
-      console.log('PoolRewarder Alice Balance after withdrawAndHarvest()', await this.rewardToken.balanceOf(this.alice.address))
-      console.log('Alices Address: ', this.alice.address);
+      // console.log('Alice Balance after withdrawAndHarvest(): ', (await this.chef.userInfo(0, this.alice.address)))
+      // console.log('PoolRewarder Alice Balance after withdrawAndHarvest()', await this.rewardToken.balanceOf(this.alice.address))
+      // console.log('Alices Address: ', this.alice.address);
       
 
 

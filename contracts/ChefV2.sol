@@ -507,6 +507,7 @@ contract ChefV2 is BoringOwnable, BoringBatchable {
 
         IRewarder _rewarder = rewarder[pid];
         if (address(_rewarder) != address(0)) {
+            console.log("this is _rewarder address: ", address(_rewarder));
             _rewarder.onSushiReward(
                 pid,
                 msg.sender,
